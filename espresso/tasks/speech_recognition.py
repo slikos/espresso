@@ -16,6 +16,7 @@ import torch
 
 from fairseq import utils
 from fairseq.data import BaseWrapperDataset, ConcatDataset
+from fairseq.data.encoders.sentencepiece_bpe import SentencepieceBPE
 from fairseq.dataclass import FairseqDataclass
 from fairseq.logging import metrics
 from fairseq.tasks import FairseqTask, register_task
@@ -93,6 +94,7 @@ class SpeechRecognitionEspressoConfig(FairseqDataclass):
     valid_subset: str = II("dataset.valid_subset")
     gen_subset: str = II("dataset.gen_subset")
     required_seq_len_multiple: int = II("dataset.required_seq_len_multiple")
+    sentencepiece_model: str = II("bpe.sentencepiece_model")
 
 
 def get_asr_dataset_from_json(
@@ -107,6 +109,7 @@ def get_asr_dataset_from_json(
     seed=1,
     global_cmvn_stats_path=None,
     specaugment_config=None,
+    cfg=None,
 ):
     """
     Parse data json and create dataset.
@@ -127,6 +130,7 @@ def get_asr_dataset_from_json(
     """
     src_datasets = []
     tgt_datasets = []
+    encoder = SentencepieceBPE(cfg)
     for k in itertools.count():
         split_k = split + (str(k) if k > 0 else "")
         data_json_path = os.path.join(data_path, "{}.json".format(split_k))
@@ -157,6 +161,8 @@ def get_asr_dataset_from_json(
             audios.append(audio)
             if "text" in val:
                 texts.append(val["text"])
+            elif "token_text" in val:
+                texts.append(encoder.decode(val["token_text"]))
             if "utt2num_frames" in val:
                 utt2num_frames.append(int(val["utt2num_frames"]))
 
@@ -293,10 +299,10 @@ class SpeechRecognitionEspressoTask(FairseqTask):
         data_path = paths[0]
         split = cfg.valid_subset.split(",")[0]  # valid set is usually much smaller than train set, so it's faster
         try:
-            src_dataset = get_asr_dataset_from_json(data_path, split, tgt_dict, combine=False).src
+            src_dataset = get_asr_dataset_from_json(data_path, split, tgt_dict, combine=False, cfg=cfg).src
         except FileNotFoundError:
             logger.warning(f"'{split}' set not found. Try to obtain feat_dim from '{cfg.gen_subset}'")
-            src_dataset = get_asr_dataset_from_json(data_path, cfg.gen_subset, tgt_dict, combine=False).src
+            src_dataset = get_asr_dataset_from_json(data_path, cfg.gen_subset, tgt_dict, combine=False, cfg=cfg).src
         if isinstance(src_dataset, ConcatDataset):
             feat_dim = src_dataset.datasets[0].feat_dim
         elif isinstance(src_dataset, BaseWrapperDataset):
@@ -349,6 +355,7 @@ class SpeechRecognitionEspressoTask(FairseqTask):
             seed=self.cfg.seed,
             global_cmvn_stats_path=self.cfg.global_cmvn_stats_path,
             specaugment_config=self.cfg.specaugment_config,
+            cfg=self.cfg
         )
 
         # update the counts of <eos> and <unk> in tgt_dict with training data
