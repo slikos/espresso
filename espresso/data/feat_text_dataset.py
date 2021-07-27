@@ -2,7 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import time
 from io import BytesIO
 import logging
 import os
@@ -93,6 +93,8 @@ class AudioFeatDataset(torch.utils.data.Dataset):
         self.seed = seed
         self.specaugment_config = specaugment_config
         self.epoch = 1
+        self.aug_wall = np.array(self.sizes, dtype=np.float32)
+        self.data_wall = np.array(self.sizes, dtype=np.float32)
 
     def check_index(self, i):
         if i < 0 or i >= self.size:
@@ -113,6 +115,7 @@ class AudioFeatDataset(torch.utils.data.Dataset):
         self.epoch = epoch
 
     def _get_features(self, i):
+        data_time = time.time()
         if self.input_format == "feat":
             feat = kaldi_io.read_mat(self.rxfiles[i])
         else:
@@ -125,8 +128,11 @@ class AudioFeatDataset(torch.utils.data.Dataset):
             if self.feature_transforms is not None:
                 feat = self.feature_transforms(feat)
         if self.specaugment_config is not None and self.specaugment_config != "":
+            aug_time = time.time()
             with data_utils.numpy_seed(self.seed, self.epoch, i):
                 feat = specaug(feat, **eval(self.specaugment_config))
+                self.aug_wall[i] = time.time() - aug_time
+        self.data_wall[i] = time.time() - data_time
         return feat
 
     def __getitem__(self, i):

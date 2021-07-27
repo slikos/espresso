@@ -562,14 +562,6 @@ class FairseqTask(object):
             metrics.log_scalar("wpb", ntokens, priority=180, round=1)
             metrics.log_speed("wps", ntokens, priority=90, round=1)
 
-        if not any("nfeatures" in log for log in logging_outputs):
-            warnings.warn(
-                "nfeatures not found in Criterion logging outputs, cannot log wpb or wps"
-            )
-        else:
-            nfeatures = sum(log.get("nfeatures", 0) for log in logging_outputs)
-            metrics.log_scalar("fpb", nfeatures, priority=185, round=1)
-
         if not any("nsentences" in log for log in logging_outputs):
             warnings.warn(
                 "nsentences not found in Criterion logging outputs, cannot log bsz"

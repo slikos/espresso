@@ -2,7 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import warnings
 from dataclasses import dataclass, field
 import logging
 import numpy as np
@@ -17,7 +17,7 @@ from fairseq.criterions.label_smoothed_cross_entropy import (
 )
 from fairseq.data import data_utils
 from fairseq.dataclass import ChoiceEnum
-
+from fairseq.logging import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +158,8 @@ class LabelSmoothedCrossEntropyV2Criterion(LabelSmoothedCrossEntropyCriterion):
             "nll_loss": nll_loss.data,
             "ntokens": sample["ntokens"],
             "nfeatures": sample["net_input"]["src_tokens"].size(0) * sample["net_input"]["src_tokens"].size(1),
+            "aug_wall": sample["stats"]["aug_wall"],
+            "data_wall": sample["stats"]["data_wall"],
             "nsentences": sample["target"].size(0),
             "sample_size": sample_size,
         }
@@ -209,3 +211,32 @@ class LabelSmoothedCrossEntropyV2Criterion(LabelSmoothedCrossEntropyCriterion):
 
     def set_epoch(self, epoch):
         self.epoch = epoch
+
+    @metrics.aggregate("train_inner")
+    def reduce_metrics(logging_outputs) -> None:
+
+        LabelSmoothedCrossEntropyCriterion.reduce_metrics(logging_outputs)
+
+        if not any("nfeatures" in log for log in logging_outputs):
+            warnings.warn(
+                "nfeatures not found in Criterion logging outputs, cannot log wpb or wps"
+            )
+        else:
+            nfeatures = sum(log.get("nfeatures", 0) for log in logging_outputs)
+            metrics.log_scalar("fpb", nfeatures, priority=185, round=1)
+
+        if not any("aug_wall" in log for log in logging_outputs):
+            warnings.warn(
+                "aug_wall not found in Criterion logging outputs, cannot log aug_wall"
+            )
+        else:
+            aug_wall = sum(log.get("aug_wall", 0) for log in logging_outputs)
+            metrics.log_scalar_sum("aug_wall", aug_wall, priority=810, round=1)
+
+        if not any("data_wall" in log for log in logging_outputs):
+            warnings.warn(
+                "data_wall not found in Criterion logging outputs, cannot log data_wall"
+            )
+        else:
+            data_wall = sum(log.get("data_wall", 0) for log in logging_outputs)
+            metrics.log_scalar_sum("data_wall", data_wall, priority=820, round=1)

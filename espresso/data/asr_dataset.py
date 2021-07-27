@@ -96,6 +96,11 @@ def collate(
     if samples[0].get("text", None) is not None:
         text = [samples[i]["text"] for i in sort_order.numpy()]
 
+    aug_wall, data_wall  = None, None
+    if samples[0].get("stats", None) is not None:
+        aug_wall = sum(samples[i]["stats"]["aug_wall"] for i in sort_order.numpy())
+        data_wall = sum(samples[i]["stats"]["data_wall"] for i in sort_order.numpy())
+
     batch = {
         "id": id,
         "utt_id": utt_id,
@@ -104,6 +109,7 @@ def collate(
         "net_input": {"src_tokens": src_frames, "src_lengths": src_lengths},
         "target": target,
         "text": text,
+        "stats": {'aug_wall': aug_wall, 'data_wall': data_wall},
     }
     if prev_output_tokens is not None:
         batch["net_input"]["prev_output_tokens"] = prev_output_tokens.index_select(
@@ -261,6 +267,7 @@ class AsrDataset(FairseqDataset):
             "source": src_item,
             "target": tgt_item,
             "text": text_item,
+            "stats": {"data_wall": self.src.data_wall[index], "aug_wall": self.src.aug_wall[index]}
         }
         if self.constraints is not None:
             example["constraints"] = self.constraints[index]
