@@ -157,6 +157,7 @@ class LabelSmoothedCrossEntropyV2Criterion(LabelSmoothedCrossEntropyCriterion):
             "loss": loss.data,
             "nll_loss": nll_loss.data,
             "ntokens": sample["ntokens"],
+            "nfeatures": sample["net_input"]["src_tokens"].size(0) * sample["net_input"]["src_tokens"].size(1),
             "nsentences": sample["target"].size(0),
             "sample_size": sample_size,
         }

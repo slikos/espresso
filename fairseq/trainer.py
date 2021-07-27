@@ -1374,7 +1374,7 @@ class Trainer(object):
             else:
                 logging_output = agg.get_smoothed_values()
                 logging_output["sample_size"] = sample_size
-                for key_to_delete in ["ppl", "wps", "wpb", "bsz"]:
+                for key_to_delete in ["ppl", "wps", "wpb", "bsz", "fpb"]:
                     if key_to_delete in logging_output:
                         del logging_output[key_to_delete]
             return logging_output
