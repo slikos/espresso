@@ -160,6 +160,7 @@ class LabelSmoothedCrossEntropyV2Criterion(LabelSmoothedCrossEntropyCriterion):
             "nfeatures": sample["net_input"]["src_tokens"].size(0) * sample["net_input"]["src_tokens"].size(1),
             "aug_wall": sample["stats"]["aug_wall"],
             "data_wall": sample["stats"]["data_wall"],
+            "src_len": sample["net_input"]["src_tokens"].size(1),
             "tgt_len": sample["stats"]["tgt_len"],
             "nsentences": sample["target"].size(0),
             "sample_size": sample_size,

@@ -433,13 +433,21 @@ class SpeechRecognitionEspressoTask(FairseqTask):
             data_wall = sum(log.get("data_wall", 0) for log in logging_outputs) / data_parallel_world_size
             metrics.log_scalar_sum("data_wall", data_wall, priority=820, round=1)
 
+        if not any("src_len" in log for log in logging_outputs):
+            warnings.warn(
+                "src_len not found in Criterion logging outputs, cannot log src_len"
+            )
+        else:
+            src_len = max(log.get("src_len", 0) for log in logging_outputs) / data_parallel_world_size
+            metrics.log_scalar("src_len", src_len, priority=186, round=1)
+
         if not any("tgt_len" in log for log in logging_outputs):
             warnings.warn(
                 "tgt_len not found in Criterion logging outputs, cannot log tgt_len"
             )
         else:
             tgt_len = max(log.get("tgt_len", 0) for log in logging_outputs) / data_parallel_world_size
-            metrics.log_scalar("tgt_len", tgt_len, priority=186, round=1)
+            metrics.log_scalar("tgt_len", tgt_len, priority=187, round=1)
 
         if word_count > 0:
             metrics.log_scalar("wer", float(word_error) / word_count * 100, word_count, round=4)

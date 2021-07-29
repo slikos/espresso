@@ -96,7 +96,7 @@ def collate(
     if samples[0].get("text", None) is not None:
         text = [samples[i]["text"] for i in sort_order.numpy()]
 
-    aug_wall, data_wall  = None, None
+    aug_wall, data_wall = None, None
     if samples[0].get("stats", None) is not None:
         aug_wall = sum(samples[i]["stats"]["aug_wall"] for i in sort_order.numpy())
         data_wall = sum(samples[i]["stats"]["data_wall"] for i in sort_order.numpy())
