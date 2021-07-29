@@ -2,7 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import warnings
 from argparse import Namespace
 from collections import OrderedDict
 import itertools
@@ -95,6 +95,7 @@ class SpeechRecognitionEspressoConfig(FairseqDataclass):
     gen_subset: str = II("dataset.gen_subset")
     required_seq_len_multiple: int = II("dataset.required_seq_len_multiple")
     sentencepiece_model: str = II("bpe.sentencepiece_model")
+    data_parallel_world_size: int = II("distributed_training.distributed_world_size")
 
 
 def get_asr_dataset_from_json(
@@ -405,13 +406,41 @@ class SpeechRecognitionEspressoTask(FairseqTask):
         if hasattr(self.criterion, "set_epoch"):
             self.criterion.set_epoch(epoch)
 
-    def reduce_metrics(self, logging_outputs, criterion):
+    def reduce_metrics(self, logging_outputs, criterion, distributed_utils=None):
         """Aggregate logging outputs from data parallel training."""
         super().reduce_metrics(logging_outputs, criterion)
         word_error = sum(log.get("word_error", 0) for log in logging_outputs)
         word_count = sum(log.get("word_count", 0) for log in logging_outputs)
         char_error = sum(log.get("char_error", 0) for log in logging_outputs)
         char_count = sum(log.get("char_count", 0) for log in logging_outputs)
+
+        data_parallel_world_size = 1 if self.cfg.data_parallel_world_size == 1 \
+            else distributed_utils.get_data_parallel_world_size()
+
+        if not any("aug_wall" in log for log in logging_outputs):
+            warnings.warn(
+                "aug_wall not found in Criterion logging outputs, cannot log aug_wall"
+            )
+        else:
+            aug_wall = sum(log.get("aug_wall", 0) for log in logging_outputs) / data_parallel_world_size
+            metrics.log_scalar_sum("aug_wall", aug_wall, priority=810, round=1)
+
+        if not any("data_wall" in log for log in logging_outputs):
+            warnings.warn(
+                "data_wall not found in Criterion logging outputs, cannot log data_wall"
+            )
+        else:
+            data_wall = sum(log.get("data_wall", 0) for log in logging_outputs) / data_parallel_world_size
+            metrics.log_scalar_sum("data_wall", data_wall, priority=820, round=1)
+
+        if not any("tgt_len" in log for log in logging_outputs):
+            warnings.warn(
+                "tgt_len not found in Criterion logging outputs, cannot log tgt_len"
+            )
+        else:
+            tgt_len = max(log.get("tgt_len", 0) for log in logging_outputs) / data_parallel_world_size
+            metrics.log_scalar("tgt_len", tgt_len, priority=186, round=1)
+
         if word_count > 0:
             metrics.log_scalar("wer", float(word_error) / word_count * 100, word_count, round=4)
         if char_count > 0:

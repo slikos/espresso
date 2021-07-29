@@ -109,7 +109,7 @@ def collate(
         "net_input": {"src_tokens": src_frames, "src_lengths": src_lengths},
         "target": target,
         "text": text,
-        "stats": {'aug_wall': aug_wall, 'data_wall': data_wall},
+        "stats": {'aug_wall': aug_wall, 'data_wall': data_wall, 'tgt_len': target.size(1)},
     }
     if prev_output_tokens is not None:
         batch["net_input"]["prev_output_tokens"] = prev_output_tokens.index_select(
