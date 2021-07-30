@@ -417,21 +417,19 @@ class SpeechRecognitionEspressoTask(FairseqTask):
         data_parallel_world_size = 1 if self.cfg.data_parallel_world_size == 1 \
             else distributed_utils.get_data_parallel_world_size()
 
-        if not any("aug_wall" in log for log in logging_outputs):
-            warnings.warn(
-                "aug_wall not found in Criterion logging outputs, cannot log aug_wall"
-            )
-        else:
-            aug_wall = sum(log.get("aug_wall", 0) for log in logging_outputs) / data_parallel_world_size
-            metrics.log_scalar_sum("aug_wall", aug_wall, priority=810, round=1)
-
-        if not any("data_wall" in log for log in logging_outputs):
-            warnings.warn(
-                "data_wall not found in Criterion logging outputs, cannot log data_wall"
-            )
-        else:
-            data_wall = sum(log.get("data_wall", 0) for log in logging_outputs) / data_parallel_world_size
-            metrics.log_scalar_sum("data_wall", data_wall, priority=820, round=1)
+        for i, metric in enumerate(['aug_twrp',
+                                    'aug_fmsk',
+                                    'aug_tmsk',
+                                    'aug_other',
+                                    'aug_wall',
+                                    'data_wall']):
+            if not any(metric in log for log in logging_outputs):
+                warnings.warn(
+                    f"{metric} not found in Criterion logging outputs, cannot log {metric}"
+                )
+            else:
+                val = sum(log.get(metric, 0) for log in logging_outputs) / data_parallel_world_size
+                metrics.log_scalar_sum(metric, val, priority=810 + i, round=1)
 
         if not any("src_len" in log for log in logging_outputs):
             warnings.warn(

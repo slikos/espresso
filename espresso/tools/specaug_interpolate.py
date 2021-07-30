@@ -10,6 +10,7 @@ MIT License
 
 Copyright (c) 2019 Zach Caceres, Jenny Cai
 """
+import time
 
 import numpy as np
 
@@ -37,15 +38,26 @@ def specaug(spec, W=80, F=27, T=70, num_freq_masks=2, num_time_masks=2, p=0.2, r
     Returns:
         output (numpy.ndarray): resultant matrix of shape `(T, dim)`
     """
-    spec = torch.from_numpy(spec)
+    spec = torch.from_numpy(spec).transpose(0, 1)
     if replace_with_zero:
         pad_value = 0.
     else:
         pad_value = spec.mean()
-    time_warped = time_warp(spec.transpose(0, 1), W=W)
+
+    timing = dict()
+    twrp_start = time.time()
+    time_warped = time_warp(spec, W=W)
+    timing['aug_twrp'] = time.time() - twrp_start
+
+    fmsk_start = time.time()
     freq_masked = freq_mask(time_warped, F=F, num_masks=num_freq_masks, pad_value=pad_value)
+    timing['aug_fmsk'] = time.time() - fmsk_start
+
+    tmsk_start = time.time()
     time_masked = time_mask(freq_masked, T=T, num_masks=num_time_masks, p=p, pad_value=pad_value)
-    return time_masked.transpose(0, 1).numpy()
+    timing['aug_tmsk'] = time.time() - tmsk_start
+
+    return time_masked.transpose(0, 1).numpy(), timing
 
 
 def time_warp(spec, W=5):

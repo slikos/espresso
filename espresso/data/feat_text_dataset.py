@@ -93,6 +93,10 @@ class AudioFeatDataset(torch.utils.data.Dataset):
         self.seed = seed
         self.specaugment_config = specaugment_config
         self.epoch = 1
+        self.aug_twrp = np.array(self.sizes, dtype=np.float32)
+        self.aug_fmsk = np.array(self.sizes, dtype=np.float32)
+        self.aug_tmsk = np.array(self.sizes, dtype=np.float32)
+        self.aug_other = np.array(self.sizes, dtype=np.float32)
         self.aug_wall = np.array(self.sizes, dtype=np.float32)
         self.data_wall = np.array(self.sizes, dtype=np.float32)
 
@@ -127,12 +131,16 @@ class AudioFeatDataset(torch.utils.data.Dataset):
             feat = get_torchaudio_fbank_or_mfcc(waveform, sample_rate, n_bins=self.feat_dim, feature_type=self.feature_type)
             if self.feature_transforms is not None:
                 feat = self.feature_transforms(feat)
+        self.data_wall[i] = time.time() - data_time
         if self.specaugment_config is not None and self.specaugment_config != "":
             aug_time = time.time()
             with data_utils.numpy_seed(self.seed, self.epoch, i):
-                feat = specaug(feat, **eval(self.specaugment_config))
+                feat, timing = specaug(feat, **eval(self.specaugment_config))
                 self.aug_wall[i] = time.time() - aug_time
-        self.data_wall[i] = time.time() - data_time
+                self.aug_twrp[i] = timing['aug_twrp']
+                self.aug_fmsk[i] = timing['aug_fmsk']
+                self.aug_tmsk[i] = timing['aug_tmsk']
+                self.aug_other[i] = self.aug_wall[i] - self.aug_twrp[i] - self.aug_fmsk[i] - self.aug_tmsk[i]
         return feat
 
     def __getitem__(self, i):
