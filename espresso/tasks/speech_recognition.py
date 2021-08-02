@@ -60,6 +60,9 @@ class SpeechRecognitionEspressoConfig(FairseqDataclass):
     max_target_positions: Optional[int] = field(
         default=1024, metadata={"help": "max number of tokens in the target sequence"}
     )
+    target_in_max_tokens: Optional[int] = field(
+        default=None, metadata={"help": "target tokens multiplier for num_tokens"}
+    )
     upsample_primary: int = field(
         default=1, metadata={"help": "amount to upsample primary dataset"},
     )
@@ -225,6 +228,7 @@ def get_asr_dataset_from_json(
         num_buckets=num_buckets,
         shuffle=shuffle,
         pad_to_multiple=pad_to_multiple,
+        target_in_max_tokens = cfg.target_in_max_tokens,
     )
 
 
@@ -369,12 +373,7 @@ class SpeechRecognitionEspressoTask(FairseqTask):
             self.tgt_dict.count[self.tgt_dict.unk()] = unk_count
 
     def build_dataset_for_inference(self, src_tokens, src_lengths, constraints=None):
-        return AsrDataset(
-            src_tokens,
-            src_lengths,
-            dictionary=self.target_dictionary,
-            constraints=constraints,
-        )
+        return AsrDataset(src_tokens, src_lengths, dictionary=self.target_dictionary, constraints=constraints)
 
     def build_model(self, model_cfg: DictConfig):
         model = super().build_model(model_cfg)

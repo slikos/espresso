@@ -188,6 +188,7 @@ class AsrDataset(FairseqDataset):
         src_lang_id=None,
         tgt_lang_id=None,
         pad_to_multiple=1,
+        target_in_max_tokens=None
     ):
         self.src = src
         self.tgt = tgt
@@ -209,7 +210,7 @@ class AsrDataset(FairseqDataset):
             if self.tgt_sizes is not None
             else self.src_sizes
         )
-
+        self.target_in_max_tokens = target_in_max_tokens
         if num_buckets > 0:
             from espresso.data import FeatBucketPadLengthDataset, TextBucketPadLengthDataset
 
@@ -362,12 +363,18 @@ class AsrDataset(FairseqDataset):
     def num_tokens(self, index):
         """Return the number of frames in a sample. This value is used to
         enforce ``--max-tokens`` during batching."""
-        return self.src_sizes[index]
+        if self.target_in_max_tokens is not None:
+            return self.src_sizes[index] + self.tgt_sizes[index] * self.target_in_max_tokens
+        else:
+            return self.src_sizes[index]
 
     def num_tokens_vec(self, indices):
         """Return the number of tokens for a set of positions defined by indices.
         This value is used to enforce ``--max-tokens`` during batching."""
-        sizes = self.src_sizes[indices]
+        if self.target_in_max_tokens is not None:
+            sizes = self.src_sizes[indices] + self.tgt_sizes[indices] * self.target_in_max_tokens
+        else:
+            sizes = self.src_sizes[indices]
         return sizes
 
     def size(self, index):
