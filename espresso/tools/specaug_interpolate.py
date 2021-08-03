@@ -65,11 +65,13 @@ def time_warp(spec, W=5):
 
     Args:
         spec (torch.Tensor): input tensor of shape `(dim, T)`
-        W (int): time warp parameter
+        W (int): time warp parameter. Skip if not positive
 
     Returns:
         time warpped tensor (torch.Tensor): output tensor of shape `(dim, T)`
     """
+    if W <= 0:
+        return spec
     t = spec.size(1)
     if t - W <= W + 1:
         return spec
