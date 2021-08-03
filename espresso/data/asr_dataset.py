@@ -182,6 +182,7 @@ class AsrDataset(FairseqDataset):
         left_pad_source=False,
         left_pad_target=False,
         shuffle=True,
+        reverse_order=False,
         input_feeding=True,
         constraints=None,
         num_buckets=0,
@@ -199,6 +200,7 @@ class AsrDataset(FairseqDataset):
         self.left_pad_source = left_pad_source
         self.left_pad_target = left_pad_target
         self.shuffle = shuffle
+        self.reverse_order = reverse_order
         self.input_feeding = input_feeding
         self.constraints = constraints
         self.src_lang_id = src_lang_id
@@ -396,12 +398,13 @@ class AsrDataset(FairseqDataset):
             # sort by target length, then source length
             if self.tgt_sizes is not None:
                 indices = indices[np.argsort(self.tgt_sizes[indices], kind="mergesort")]
-            return indices[np.argsort(self.src_sizes[indices], kind="mergesort")]
+            indices = indices[np.argsort(self.src_sizes[indices], kind="mergesort")]
         else:
             # sort by bucketed_num_tokens, which is padded_src_len
-            return indices[
+            indices = indices[
                 np.argsort(self.bucketed_num_tokens[indices], kind="mergesort")
             ]
+        return indices if not self.reverse_order else indices[::-1]
 
     @property
     def supports_prefetch(self):

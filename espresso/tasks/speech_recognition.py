@@ -63,6 +63,10 @@ class SpeechRecognitionEspressoConfig(FairseqDataclass):
     target_in_max_tokens: Optional[int] = field(
         default=None, metadata={"help": "target tokens multiplier for num_tokens"}
     )
+    reverse_samples_order: bool = field(
+        default=False,
+        metadata={"help": "reverse samples order. For memory testing"},
+    )
     upsample_primary: int = field(
         default=1, metadata={"help": "amount to upsample primary dataset"},
     )
@@ -227,6 +231,7 @@ def get_asr_dataset_from_json(
         left_pad_target=False,
         num_buckets=num_buckets,
         shuffle=shuffle,
+        reverse_order=cfg.reverse_samples_order,
         pad_to_multiple=pad_to_multiple,
         target_in_max_tokens = cfg.target_in_max_tokens,
     )
