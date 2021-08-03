@@ -724,6 +724,7 @@ class Trainer(object):
             except RuntimeError as e:
                 if "out of memory" in str(e):
                     self._log_oom(e)
+                    self._log_sample(sample)
                     if raise_oom:
                         raise e
                     logger.warning(
@@ -858,6 +859,7 @@ class Trainer(object):
         except RuntimeError as e:
             if "out of memory" in str(e):
                 self._log_oom(e)
+                self._log_sample(sample)
                 logger.error("OOM during optimization, irrecoverable")
             raise e
 
@@ -912,10 +914,18 @@ class Trainer(object):
                 if self.cuda and self.cuda_env is not None:
                     # log minimum free memory over the iteration
                     gb_used = torch.cuda.max_memory_allocated() / 1024 / 1024 / 1024
+                    gb_reserved = torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024
+                    gb_alc = torch.cuda.max_memory_allocated() / 1024 / 1024 / 1024
                     torch.cuda.reset_peak_memory_stats()
                     gb_free = self.cuda_env.total_memory_in_GB - gb_used
                     metrics.log_scalar(
-                        "gb_free", gb_free, priority=1500, round=1, weight=0
+                        "gb_free", gb_free, priority=1500, round=2, weight=0
+                    )
+                    metrics.log_scalar(
+                        "gb_rsvd", gb_reserved, priority=1600, round=2, weight=0
+                    )
+                    metrics.log_scalar(
+                        "gb_alloc", gb_alc, priority=1700, round=2, weight=0
                     )
 
                 # log stats
@@ -972,6 +982,7 @@ class Trainer(object):
             except RuntimeError as e:
                 if "out of memory" in str(e):
                     self._log_oom(e)
+                    self._log_sample(sample)
                     if not raise_oom:
                         logger.warning(
                             "ran out of memory in validation step, retrying batch"
@@ -1213,6 +1224,27 @@ class Trainer(object):
             for device_idx in range(torch.cuda.device_count()):
                 logger.warning(torch.cuda.memory_summary(device=device_idx))
         sys.stderr.flush()
+
+    def _log_sample(self, sample):
+        src_tokens = sample.get("net_input", {}).get("src_tokens")
+        src_len = src_tokens.size(1) if src_tokens is not None else 0
+        target = sample.get('target')
+        tgt_len= target.size(1) if target is not None else 0
+        bsz = sample.get("nsentences")
+        wpb = sample.get('ntokens')
+        fpb = src_len * bsz
+        gb_free = 0
+        if self.cuda and self.cuda_env is not None:
+            # log minimum free memory over the iteration
+            gb_used = torch.cuda.max_memory_allocated() / 1024 / 1024 / 1024
+            torch.cuda.reset_peak_memory_stats()
+            gb_free = self.cuda_env.total_memory_in_GB - gb_used
+        gb_rsd = torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024
+        gb_alc = torch.cuda.max_memory_allocated() / 1024 / 1024 / 1024
+        msg = f'OOM SAMPLE INFO: wpb={wpb}, fpb={fpb}, src_len={src_len}, tgt_len={tgt_len}, ' \
+              f'bsz={bsz}, gb_free={gb_free}, gb_rsd={gb_rsd}, gb_alc={gb_alc}'
+        torch.cuda.reset_peak_memory_stats()
+        logger.warning(msg)
 
     def _aggregate_logging_outputs(
         self,
