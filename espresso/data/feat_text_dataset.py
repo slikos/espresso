@@ -93,12 +93,12 @@ class AudioFeatDataset(torch.utils.data.Dataset):
         self.seed = seed
         self.specaugment_config = specaugment_config
         self.epoch = 1
-        self.aug_twrp = np.array(self.sizes, dtype=np.float32)
-        self.aug_fmsk = np.array(self.sizes, dtype=np.float32)
-        self.aug_tmsk = np.array(self.sizes, dtype=np.float32)
-        self.aug_other = np.array(self.sizes, dtype=np.float32)
-        self.aug_wall = np.array(self.sizes, dtype=np.float32)
-        self.data_wall = np.array(self.sizes, dtype=np.float32)
+        self.aug_twrp = np.zeros(len(self.sizes), dtype=np.float32)
+        self.aug_fmsk = np.zeros(len(self.sizes), dtype=np.float32)
+        self.aug_tmsk = np.zeros(len(self.sizes), dtype=np.float32)
+        self.aug_other = np.zeros(len(self.sizes), dtype=np.float32)
+        self.aug_wall = np.zeros(len(self.sizes), dtype=np.float32)
+        self.data_wall = np.zeros(len(self.sizes), dtype=np.float32)
 
     def check_index(self, i):
         if i < 0 or i >= self.size:

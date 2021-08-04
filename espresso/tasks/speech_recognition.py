@@ -89,6 +89,15 @@ class SpeechRecognitionEspressoConfig(FairseqDataclass):
             "will take on their default values"
         },
     )
+    specaugment_patience: Optional[int] = field(
+        default=0,
+        metadata={
+            "help": """Number of epochs with no SpecAugment. For example, if
+            `specaugment-patience = 2`, then we will ignore the first 2 epochs
+            with no apply SpecAugment.
+            Default: 0."""
+        },
+    )
     global_cmvn_stats_path: Optional[str] = field(
         default=None,
         metadata={"help": "If not None, apply global cmvn using this global cmvn stats file (.npz)."},
@@ -364,7 +373,7 @@ class SpeechRecognitionEspressoTask(FairseqTask):
             pad_to_multiple=self.cfg.required_seq_len_multiple,
             seed=self.cfg.seed,
             global_cmvn_stats_path=self.cfg.global_cmvn_stats_path,
-            specaugment_config=self.cfg.specaugment_config,
+            specaugment_config=self.cfg.specaugment_config if epoch > self.cfg.specaugment_patience else None,
             cfg=self.cfg
         )
 
