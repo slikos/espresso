@@ -18,6 +18,7 @@ from fairseq import utils
 from fairseq.data import BaseWrapperDataset, ConcatDataset
 from fairseq.data.encoders.sentencepiece_bpe import SentencepieceBPE
 from fairseq.dataclass import FairseqDataclass
+from fairseq.distributed import utils as distributed_utils
 from fairseq.logging import metrics
 from fairseq.tasks import FairseqTask, register_task
 from omegaconf import DictConfig, II
@@ -419,7 +420,7 @@ class SpeechRecognitionEspressoTask(FairseqTask):
         if hasattr(self.criterion, "set_epoch"):
             self.criterion.set_epoch(epoch)
 
-    def reduce_metrics(self, logging_outputs, criterion, distributed_utils=None):
+    def reduce_metrics(self, logging_outputs, criterion):
         """Aggregate logging outputs from data parallel training."""
         super().reduce_metrics(logging_outputs, criterion)
         word_error = sum(log.get("word_error", 0) for log in logging_outputs)
