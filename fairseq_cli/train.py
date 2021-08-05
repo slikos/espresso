@@ -241,9 +241,11 @@ def train(
 ) -> Tuple[List[Optional[float]], bool]:
     """Train the model for one epoch and return validation losses."""
     # Initialize data iterator
+    pin_memory = task.pin_memory if hasattr(task, 'pin_memory') else True
     itr = epoch_itr.next_epoch_itr(
         fix_batches_to_gpus=cfg.distributed_training.fix_batches_to_gpus,
         shuffle=(epoch_itr.next_epoch_idx > cfg.dataset.curriculum),
+        pin_memory=pin_memory
     )
     update_freq = (
         cfg.optimization.update_freq[epoch_itr.epoch - 1]

@@ -271,6 +271,10 @@ class SpeechRecognitionEspressoTask(FairseqTask):
         :prog:
     """
 
+    @property
+    def pin_memory(self):
+        return False
+
     @classmethod
     def load_dictionary(cls, filename, enable_bos=False, non_lang_syms=None):
         """Load the dictionary from the filename

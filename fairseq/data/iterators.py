@@ -201,7 +201,7 @@ class StreamingEpochBatchIterator(EpochBatchIterating):
     def load_state_dict(self, state_dict):
         self.epoch = state_dict["epoch"]
 
-    def _get_iterator_for_epoch(self, epoch, shuffle, offset=0):
+    def _get_iterator_for_epoch(self, epoch, shuffle, offset=0, pin_memory=True):
         if self.num_workers > 0:
             os.environ["PYTHONWARNINGS"] = "ignore:semaphore_tracker:UserWarning"
 
@@ -214,7 +214,7 @@ class StreamingEpochBatchIterator(EpochBatchIterating):
             num_workers=self.num_workers,
             timeout=self.timeout,
             worker_init_fn=worker_init_fn,
-            pin_memory=True,
+            pin_memory=pin_memory,
         )
 
         # Wrap with a BufferedIterator if needed
@@ -341,7 +341,7 @@ class EpochBatchIterator(EpochBatchIterating):
             return self.epoch
 
     def next_epoch_itr(
-        self, shuffle=True, fix_batches_to_gpus=False, set_dataset_epoch=True
+        self, shuffle=True, fix_batches_to_gpus=False, set_dataset_epoch=True, pin_memory=True
     ):
         """Return a new iterator over the dataset.
 
@@ -371,6 +371,7 @@ class EpochBatchIterator(EpochBatchIterating):
                 self.epoch,
                 shuffle,
                 fix_batches_to_gpus=fix_batches_to_gpus,
+                pin_memory=pin_memory,
             )
         self.shuffle = shuffle
         return self._cur_epoch_itr
@@ -429,7 +430,7 @@ class EpochBatchIterator(EpochBatchIterating):
             self._next_epoch_itr = None
 
     def _get_iterator_for_epoch(
-        self, epoch, shuffle, fix_batches_to_gpus=False, offset=0
+        self, epoch, shuffle, fix_batches_to_gpus=False, offset=0, pin_memory=True
     ):
         def shuffle_batches(batches, seed):
             with data_utils.numpy_seed(seed):
@@ -471,7 +472,7 @@ class EpochBatchIterator(EpochBatchIterating):
             batch_sampler=batches[offset:],
             num_workers=self.num_workers,
             timeout=self.timeout,
-            pin_memory=False,
+            pin_memory=pin_memory,
         )
 
         # Wrap with a BufferedIterator if needed
