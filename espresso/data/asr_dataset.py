@@ -62,7 +62,7 @@ def collate(
     src_lengths, sort_order = src_lengths.sort(descending=True)
     id = id.index_select(0, sort_order)
     utt_id = [samples[i]["utt_id"] for i in sort_order.numpy()]
-    src_frames = src_frames.index_select(0, sort_order)
+    src_frames = src_frames.index_select(0, sort_order.to(src_frames.device))
 
     prev_output_tokens = None
     target = None

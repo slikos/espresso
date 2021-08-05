@@ -131,11 +131,12 @@ class AudioFeatDataset(torch.utils.data.Dataset):
             feat = get_torchaudio_fbank_or_mfcc(waveform, sample_rate, n_bins=self.feat_dim, feature_type=self.feature_type)
             if self.feature_transforms is not None:
                 feat = self.feature_transforms(feat)
+        feat = torch.from_numpy(feat)
         self.data_wall[i] = time.time() - data_time
         if self.specaugment_config is not None and self.specaugment_config != "":
             aug_time = time.time()
             with data_utils.numpy_seed(self.seed, self.epoch, i):
-                feat, timing = specaug(feat, **eval(self.specaugment_config))
+                feat, timing = specaug(feat, **eval(self.specaugment_config), torch=True)
                 self.aug_wall[i] = time.time() - aug_time
                 self.aug_twrp[i] = timing['aug_twrp']
                 self.aug_fmsk[i] = timing['aug_fmsk']
@@ -146,7 +147,8 @@ class AudioFeatDataset(torch.utils.data.Dataset):
     def __getitem__(self, i):
         self.check_index(i)
         feat = self._get_features(i)
-        item = torch.from_numpy(feat).float()
+        item = feat
+        # item = torch.from_numpy(feat).float()
         return item
 
     def __len__(self):

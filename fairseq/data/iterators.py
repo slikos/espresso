@@ -471,7 +471,7 @@ class EpochBatchIterator(EpochBatchIterating):
             batch_sampler=batches[offset:],
             num_workers=self.num_workers,
             timeout=self.timeout,
-            pin_memory=True,
+            pin_memory=False,
         )
 
         # Wrap with a BufferedIterator if needed

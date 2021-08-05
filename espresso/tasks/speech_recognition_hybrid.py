@@ -13,6 +13,7 @@ from typing import Optional
 
 import torch
 
+from data import AudioFeatDataset
 from fairseq import utils
 from fairseq.data import BaseWrapperDataset, ConcatDataset
 from fairseq.dataclass import FairseqDataclass
@@ -239,11 +240,17 @@ def get_asr_dataset_from_json(
                     "global_cmvn": {"stats_npz_path": global_cmvn_stats_path}
                 }
                 extra_kwargs["feature_transforms_config"] = feature_transforms_config
-        src_datasets.append(AudioFeatCachedDataset(
+        # src_datasets.append(AudioFeatCachedDataset(
+        #     utt_ids, audios, utt2num_frames=utt2num_frames, seed=seed,
+        #     specaugment_config=specaugment_config if split == "train" else None,
+        #     ordered_prefetch=True, **extra_kwargs
+        # )
+        src_datasets.append(AudioFeatDataset(
             utt_ids, audios, utt2num_frames=utt2num_frames, seed=seed,
             specaugment_config=specaugment_config if split == "train" else None,
-            ordered_prefetch=True, **extra_kwargs
-        ))
+            **extra_kwargs
+        )
+        )
         if lf_mmi:
             if len(numerator_fsts) > 0:
                 assert len(utt_ids) == len(numerator_fsts)

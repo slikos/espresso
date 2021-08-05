@@ -17,7 +17,8 @@ import numpy as np
 import torch
 
 
-def specaug(spec, W=80, F=27, T=70, num_freq_masks=2, num_time_masks=2, p=0.2, replace_with_zero=False):
+def specaug(spec, W=80, F=27, T=70, num_freq_masks=2, num_time_masks=2, p=0.2, replace_with_zero=False,
+            torch=False):
     """SpecAugment
 
     Reference: SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition
@@ -38,7 +39,8 @@ def specaug(spec, W=80, F=27, T=70, num_freq_masks=2, num_time_masks=2, p=0.2, r
     Returns:
         output (numpy.ndarray): resultant matrix of shape `(T, dim)`
     """
-    spec = torch.from_numpy(spec).transpose(0, 1)
+    spec = spec if torch else torch.from_numpy(spec)
+    spec = spec.cuda().transpose(0, 1)
     if replace_with_zero:
         pad_value = 0.
     else:
@@ -57,7 +59,7 @@ def specaug(spec, W=80, F=27, T=70, num_freq_masks=2, num_time_masks=2, p=0.2, r
     time_masked = time_mask(freq_masked, T=T, num_masks=num_time_masks, p=p, pad_value=pad_value)
     timing['aug_tmsk'] = time.time() - tmsk_start
 
-    return time_masked.transpose(0, 1).numpy(), timing
+    return time_masked.transpose(0, 1) if torch else time_masked.transpose(0, 1).numpy(), timing
 
 
 def time_warp(spec, W=5):
