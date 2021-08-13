@@ -32,7 +32,8 @@ def specaug(spec, W=80, F=27, T=70, num_freq_masks=2, num_time_masks=2, p=0.2, r
         F (int): maximum width of each freq mask
         T (int): maximum width of each time mask
         num_freq_masks (int): number of frequency masks
-        num_time_masks (int): number of time masks
+        num_time_masks (int): number of time masks. In negative, number will be adaptive /
+         proportional to the spec length
         p (int): time mask width shouldn't exeed this times num of frames
         replace_with_zero (bool): if True, masked parts will be filled with 0, if False, filled with mean
 
@@ -135,8 +136,9 @@ def time_mask(spec, T=40, num_masks=1, p=0.2, pad_value=0.):
     cloned = spec.clone()
     len_spectro = cloned.size(1)
     T = min(T, int(len_spectro * p))
-    if T == 0:
+    if T == 0 or num_masks == 0:
         return cloned
+    num_masks = num_masks if num_masks > 0 else int(len_spectro * p / T)
 
     for i in range(num_masks):
         t = np.random.randint(0, T + 1)
