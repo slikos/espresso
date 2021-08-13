@@ -115,7 +115,7 @@ def freq_mask(spec, F=30, num_masks=1, pad_value=0.):
         f_zero = np.random.randint(0, num_mel_channels - f + 1)
 
         if f == 0:
-            return cloned
+            continue
         cloned[f_zero:f_zero + f] = pad_value
     return cloned
 
@@ -145,6 +145,6 @@ def time_mask(spec, T=40, num_masks=1, p=0.2, pad_value=0.):
         t_zero = np.random.randint(0, len_spectro - t + 1)
 
         if t == 0:
-            return cloned
+            continue
         cloned[:, t_zero:t_zero + t] = pad_value
     return cloned
