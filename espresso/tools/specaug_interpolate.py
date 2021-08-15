@@ -18,7 +18,7 @@ import torch
 
 
 def specaug(spec, W=80, F=27, T=70, num_freq_masks=2, num_time_masks=2, p=0.2, replace_with_zero=False,
-            torch=False):
+            pw=None, torch=False):
     """SpecAugment
 
     Reference: SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition
@@ -49,7 +49,7 @@ def specaug(spec, W=80, F=27, T=70, num_freq_masks=2, num_time_masks=2, p=0.2, r
 
     timing = dict()
     twrp_start = time.time()
-    time_warped = time_warp(spec, W=W)
+    time_warped = time_warp(spec, W=W, pw=pw)
     timing['aug_twrp'] = time.time() - twrp_start
 
     fmsk_start = time.time()
@@ -63,20 +63,20 @@ def specaug(spec, W=80, F=27, T=70, num_freq_masks=2, num_time_masks=2, p=0.2, r
     return time_masked.transpose(0, 1) if torch else time_masked.transpose(0, 1).numpy(), timing
 
 
-def time_warp(spec, W=5):
+def time_warp(spec, W=5, pw=None):
     """Time warping
 
     Args:
         spec (torch.Tensor): input tensor of shape `(dim, T)`
         W (int): time warp parameter. Skip if not positive
+        pw (float): increase / decrease rate (recommended no more than 0.2)
 
     Returns:
         time warpped tensor (torch.Tensor): output tensor of shape `(dim, T)`
     """
-    if W <= 0:
-        return spec
     t = spec.size(1)
-    if t - W <= W + 1:
+    W = W if pw is None else int(t * pw)
+    if W <= 0 or t - W <= W + 1:
         return spec
     center = np.random.randint(W + 1, t - W)
     warped = np.random.randint(center - W, center + W + 1)
