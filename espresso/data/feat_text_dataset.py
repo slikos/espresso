@@ -269,6 +269,7 @@ class AudioFeatInMemoryDataset(AudioFeatDataset):
         self.read_data()
 
     def read_data(self):
+        logger.info("Loading data into memory...")
         self.data_offsets = np.append([0], np.cumsum(self.sizes)[:-1])
         self.buffer = np.empty(
             (sum(self.sizes), self.feat_dim),

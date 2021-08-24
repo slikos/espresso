@@ -28,6 +28,7 @@ from espresso.data import (
     AsrDictionary,
     AsrTextDataset,
     AudioFeatDataset,
+    AudioFeatInMemoryDataset,
 )
 
 
@@ -80,6 +81,7 @@ class SpeechRecognitionEspressoConfig(FairseqDataclass):
         },
     )
     feat_in_channels: int = field(default=1, metadata={"help": "feature input channels"})
+    valid_in_memory: bool = field(default=False, metadata={"help": "load validation datasets into memory"})
     specaugment_config: Optional[str] = field(
         default=None,
         metadata={
@@ -195,7 +197,11 @@ def get_asr_dataset_from_json(
                     "global_cmvn": {"stats_npz_path": global_cmvn_stats_path}
                 }
                 extra_kwargs["feature_transforms_config"] = feature_transforms_config
-        src_datasets.append(AudioFeatDataset(
+        if cfg.valid_in_memory and "valid" in split:
+            feat_dataset_class = AudioFeatInMemoryDataset
+        else:
+            feat_dataset_class = AudioFeatDataset
+        src_datasets.append(feat_dataset_class(
             utt_ids, audios, utt2num_frames=utt2num_frames, seed=seed,
             specaugment_config=specaugment_config if split == "train" else None,
             **extra_kwargs
