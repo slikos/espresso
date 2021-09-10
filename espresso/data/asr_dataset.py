@@ -4,6 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 
 import logging
+from collections import Counter
+
 import numpy as np
 import torch
 
@@ -182,6 +184,7 @@ class AsrDataset(FairseqDataset):
         left_pad_source=False,
         left_pad_target=False,
         shuffle=True,
+        seed=1,
         reverse_order=False,
         input_feeding=True,
         constraints=None,
@@ -189,6 +192,7 @@ class AsrDataset(FairseqDataset):
         src_lang_id=None,
         tgt_lang_id=None,
         pad_to_multiple=1,
+        word_count_limit=None,
         target_in_max_tokens=None
     ):
         self.src = src
@@ -200,6 +204,7 @@ class AsrDataset(FairseqDataset):
         self.left_pad_source = left_pad_source
         self.left_pad_target = left_pad_target
         self.shuffle = shuffle
+        self.seed = seed
         self.reverse_order = reverse_order
         self.input_feeding = input_feeding
         self.constraints = constraints
@@ -246,6 +251,11 @@ class AsrDataset(FairseqDataset):
         else:
             self.buckets = None
         self.pad_to_multiple = pad_to_multiple
+        self.word_count_limit = word_count_limit
+        self.tgt_words = []
+        if self.tgt and self.word_count_limit and self.word_count_limit > 0:
+            self.tgt_words = [text.split() for text in self.tgt.texts]
+        self.epoch = None
 
     def _match_src_tgt(self):
         """Makes utterances in src and tgt the same order in terms of
@@ -394,6 +404,8 @@ class AsrDataset(FairseqDataset):
             indices = np.random.permutation(len(self)).astype(np.int64)
         else:
             indices = np.arange(len(self), dtype=np.int64)
+        if self.tgt and self.word_count_limit and self.word_count_limit > 0:
+            indices = self.filter_indices_by_frequency(indices, self.word_count_limit)
         if self.buckets is None:
             # sort by target length, then source length
             if self.tgt_sizes is not None:
@@ -431,6 +443,41 @@ class AsrDataset(FairseqDataset):
             self.src_sizes, self.tgt_sizes, indices, max_sizes,
         )
 
+    def filter_indices_by_frequency(self, indices, max_count):
+        """Filter a list of sample indices. Delete those that consist of all words
+            occurring more than max_count times.
+
+        Args:
+            indices (np.array): original array of sample indices
+            max_count (int): the maximum number of times a word can occur.
+
+        Returns:
+            np.array: filtered sample array
+        """
+
+        word_counter = Counter()
+
+        def keep_sample(id):
+            words = self.tgt_words[id]
+            rare_words_cnt = len(words)
+            for word in words:
+                word_counter[word] += 1
+                if word_counter[word] > max_count:
+                    rare_words_cnt -= 1
+            return rare_words_cnt > 0
+
+        with data_utils.numpy_seed(self.seed + self.epoch):
+            shuffled_indices = indices.copy()
+            np.random.shuffle(shuffled_indices)
+
+        keep_ids = set([id for id in shuffled_indices if keep_sample(id)])
+        logger.info("{:,} samples have all words occurring more {} times and will be skipped".
+                    format(len(indices) - len(keep_ids), max_count))
+        logger.info("{:,} samples left after filtering by frequency".format(len(keep_ids)))
+
+        indices = np.array([id for id in indices if id in keep_ids])
+        return indices
+
     @property
     def supports_fetch_outside_dataloader(self):
         """Whether this dataset supports fetching outside the workers of the dataloader."""
@@ -441,6 +488,7 @@ class AsrDataset(FairseqDataset):
         return False  # to avoid running out of CPU RAM
 
     def set_epoch(self, epoch):
+        self.epoch = epoch
         super().set_epoch(epoch)
         if hasattr(self.src, "set_epoch"):
             self.src.set_epoch(epoch)

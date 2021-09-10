@@ -12,7 +12,6 @@ import os
 from dataclasses import dataclass, field
 from typing import Optional, Union
 
-import numpy.random
 import torch
 
 from fairseq import utils
@@ -73,8 +72,8 @@ class SpeechRecognitionEspressoConfig(FairseqDataclass):
     upsample_primary: int = field(
         default=1, metadata={"help": "amount to upsample primary dataset"},
     )
-    word_count_limit: int = field(
-        default=-1, metadata={"help": "soft limit of frequent words count for removing samples from train dataset"},
+    word_count_limit: Optional[int] = field(
+        default=None, metadata={"help": "soft limit of frequent words count for removing samples from train dataset"},
     )
     num_batch_buckets: Optional[int] = field(
         default=0,
@@ -119,43 +118,6 @@ class SpeechRecognitionEspressoConfig(FairseqDataclass):
     required_seq_len_multiple: int = II("dataset.required_seq_len_multiple")
     sentencepiece_model: str = II("bpe.sentencepiece_model")
     data_parallel_world_size: int = II("distributed_training.distributed_world_size")
-
-
-def remove_frequent_samples(loaded_json: OrderedDict, limit=100, seed=1, encoder=None):
-    # Removing samples containing frequent words
-    word_counter = Counter()
-
-    def check_utt(utt_text):
-        words = utt_text.split()
-        infreq_words_cnt = len(words)
-        for word in words:
-            word_counter[word] += 1
-            if word_counter[word] > limit:
-                infreq_words_cnt -= 1
-        return infreq_words_cnt > 0
-
-    shuffled_utts = list(loaded_json.keys())
-    with data_utils.numpy_seed(seed):
-        numpy.random.shuffle(shuffled_utts)
-    keep_utts = set()
-
-    for utt_id in shuffled_utts:
-        val = loaded_json[utt_id]
-        if 'text' in val:
-            text = val['text']
-        elif 'token_text' in val:
-            token_text = val['token_text']
-            text = encoder.decode(token_text) if encoder else token_text.replace(' ', '').replace(chr(9601), ' ').strip()
-        else:
-            continue
-        if check_utt(text):
-            keep_utts.add(utt_id)
-
-    cleared_json = OrderedDict()
-    for utt_id, val in loaded_json.items():
-        if utt_id in keep_utts:
-            cleared_json[utt_id] = val
-    return cleared_json
 
 
 def get_asr_dataset_from_json(
@@ -205,10 +167,6 @@ def get_asr_dataset_from_json(
 
         with open(data_json_path, "rb") as f:
             loaded_json = json.load(f, object_pairs_hook=OrderedDict)
-            if split == "train" and cfg.word_count_limit > 0:
-                logger.info("{} {} examples before removing frequent words".format(data_json_path, len(loaded_json)))
-                loaded_json = remove_frequent_samples(loaded_json, cfg.word_count_limit, seed, encoder)
-                logger.info("{} examples after removing frequent words".format(len(loaded_json)))
 
         utt_ids, audios, texts, utt2num_frames = [], [], [], []
         for utt_id, val in loaded_json.items():
@@ -292,9 +250,11 @@ def get_asr_dataset_from_json(
         left_pad_target=False,
         num_buckets=num_buckets,
         shuffle=shuffle,
+        seed=seed,
         reverse_order=cfg.reverse_samples_order,
         pad_to_multiple=pad_to_multiple,
-        target_in_max_tokens = cfg.target_in_max_tokens,
+        word_count_limit=cfg.word_count_limit if 'train' in split else None,
+        target_in_max_tokens=cfg.target_in_max_tokens,
     )
 
 
