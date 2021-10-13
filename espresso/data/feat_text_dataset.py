@@ -21,6 +21,7 @@ from fairseq.data.audio.feature_transforms import CompositeAudioFeatureTransform
 
 from espresso.tools.specaug_interpolate import specaug
 from espresso.tools.utils import compute_num_frames_from_feat_or_waveform, get_torchaudio_fbank_or_mfcc
+from espresso.tools.specaug_noise import AddSpecNoise
 
 try:
     import kaldi_io
@@ -50,6 +51,7 @@ class AudioFeatDataset(torch.utils.data.Dataset):
         seed=1,
         feature_transforms_config: Optional[Dict[str, Any]] = None,
         specaugment_config: Optional[str] = None,
+        spec_noise_config: Optional[str] = None,
     ):
         super().__init__()
         assert len(utt_ids) == len(rxfiles)
@@ -92,6 +94,11 @@ class AudioFeatDataset(torch.utils.data.Dataset):
         self.feature_transforms = CompositeAudioFeatureTransform.from_config_dict(config=feature_transforms_config)
         self.seed = seed
         self.specaugment_config = specaugment_config
+        if spec_noise_config is not None and spec_noise_config != "":
+            self.add_spec_noise = AddSpecNoise(**eval(spec_noise_config))
+        else:
+            self.add_spec_noise = None
+
         self.epoch = 1
         self.aug_twrp = np.zeros(len(self.sizes), dtype=np.float32)
         self.aug_fmsk = np.zeros(len(self.sizes), dtype=np.float32)
@@ -137,11 +144,14 @@ class AudioFeatDataset(torch.utils.data.Dataset):
             aug_time = time.time()
             with data_utils.numpy_seed(self.seed, self.epoch, i):
                 feat, timing = specaug(feat, **eval(self.specaugment_config), torch=True)
-                self.aug_wall[i] = time.time() - aug_time
-                self.aug_twrp[i] = timing['aug_twrp']
-                self.aug_fmsk[i] = timing['aug_fmsk']
-                self.aug_tmsk[i] = timing['aug_tmsk']
-                self.aug_other[i] = self.aug_wall[i] - self.aug_twrp[i] - self.aug_fmsk[i] - self.aug_tmsk[i]
+            if self.add_spec_noise:
+                with data_utils.numpy_seed(self.seed, self.epoch, i):
+                    feat = self.add_spec_noise(feat)
+            self.aug_wall[i] = time.time() - aug_time
+            self.aug_twrp[i] = timing['aug_twrp']
+            self.aug_fmsk[i] = timing['aug_fmsk']
+            self.aug_tmsk[i] = timing['aug_tmsk']
+            self.aug_other[i] = self.aug_wall[i] - self.aug_twrp[i] - self.aug_fmsk[i] - self.aug_tmsk[i]
         return feat
 
     def __getitem__(self, i):

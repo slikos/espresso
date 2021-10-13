@@ -104,6 +104,16 @@ class SpeechRecognitionEspressoConfig(FairseqDataclass):
             Default: 0."""
         },
     )
+    spec_noise_config: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "AddSpecNoise config string. If not None and not empty, "
+            "then apply SpecNoise. Should be an evaluatable expression of "
+            "a python dict. See espresso.tools.specaug_noise for "
+            "all allowed arguments. Argments not appearing in this string "
+            "will take on their default values"
+        },
+    )
     global_cmvn_stats_path: Optional[str] = field(
         default=None,
         metadata={"help": "If not None, apply global cmvn using this global cmvn stats file (.npz)."},
@@ -207,6 +217,7 @@ def get_asr_dataset_from_json(
         src_datasets.append(feat_dataset_class(
             utt_ids, audios, utt2num_frames=utt2num_frames, seed=seed,
             specaugment_config=specaugment_config if split == "train" else None,
+            spec_noise_config=cfg.spec_noise_config if split == "train" else None,
             **extra_kwargs
         ))
         if len(texts) > 0:
